@@ -203,6 +203,11 @@ impl WireGuard {
         } else {
             None
         };
+        let mut pc_local_port_number = PrometheusMetric::build()
+            .with_name("wireguard_local_port_number")
+            .with_metric_type(MetricType::Gauge)
+            .with_help("Local port Wireguard is listening on")
+            .build();
 
         // Here we make sure we process the interfaces in the
         // lexicographical order.
@@ -344,12 +349,20 @@ impl WireGuard {
                     pc_latest_handshake.render_and_append_instance(
                         &instance.with_value(ep.latest_handshake.into()),
                     );
+                } else if let Endpoint::Local(ep) = endpoint {
+                    debug!("WireGuard::render_with_names ep == {:?}", ep);
+                    let instance = PrometheusInstance::new()
+                        .with_label("interface", interface.as_str())
+                        .with_label("public_key", ep.public_key.as_str());
+                    pc_local_port_number
+                        .render_and_append_instance(&instance.clone().with_value(ep.local_port))
+                        .render();
                 }
             }
         }
 
         format!(
-            "{}\n{}\n{}{}",
+            "{}\n{}\n{}{}\n{}",
             pc_sent_bytes_total.render(),
             pc_received_bytes_total.render(),
             pc_latest_handshake.render(),
@@ -357,7 +370,8 @@ impl WireGuard {
                 // this row adds pc_latest_handshake_delay only if configured
                 || "".to_owned(),
                 |pc_latest_handshake_delay| format!("\n{}", pc_latest_handshake_delay.render())
-            )
+            ),
+            pc_local_port_number.render(),
         )
     }
 }
