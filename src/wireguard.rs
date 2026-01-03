@@ -97,8 +97,8 @@ impl TryFrom<&str> for WireGuard {
             let endpoint = if v.len() == 5 {
                 // this is the local interface
                 Endpoint::Local(LocalEndpoint {
-                    public_key: v[1].to_owned(),
-                    private_key: v[2].into(),
+                    private_key: v[1].into(),
+                    public_key: v[2].to_owned(),
                     local_port: v[3].parse::<u16>().unwrap(),
                     persistent_keepalive: to_bool(v[4]),
                 })
@@ -685,5 +685,21 @@ wireguard_latest_handshake_seconds{interface=\"wg0\",public_key=\"sUsR6xufQQ8Tf0
 
         let prometheus = wg.render_with_names(Some(&pehm), &options);
         assert_eq!(prometheus, REF_JSON);
+    }
+
+    #[test]
+    fn test_parse_local_endpoint() {
+        let a = WireGuard::try_from(TEXT).unwrap();
+        println!("{:?}", a);
+        assert!(a.interfaces.len() == 3);
+        assert!(a.interfaces["wg0"].len() == 6);
+
+        let e0 = match &a.interfaces["wg0"][0] {
+            Endpoint::Local(le) => le,
+            Endpoint::Remote(_) => panic!(),
+        };
+
+        assert_eq!(e0.local_port, 51820);
+        assert_eq!(e0.public_key, "0000u8LWR682knVm350lnuqlCJzw5SNLW9Nf96P+m8=");
     }
 }
